@@ -11,7 +11,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 const DIST_DIR = path.join(__dirname, "..", "dist");
 
-const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@agenda.app";
+function normalizeVapidSubject(subject) {
+  if (!subject) return "mailto:admin@agenda.app";
+  if (subject.startsWith("mailto:") || subject.startsWith("http://") || subject.startsWith("https://")) {
+    return subject;
+  }
+  return `mailto:${subject}`;
+}
+
+const vapidSubject = normalizeVapidSubject(process.env.VAPID_SUBJECT);
 
 if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
   const keys = webpush.generateVAPIDKeys();
