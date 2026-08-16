@@ -1,7 +1,8 @@
-import React, { useRef } from "react";
-import { Clock, Bell, Palette, Globe, Info, BellRing, BellOff, Check, Plus, Trash2, Download, Upload } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Clock, Bell, Palette, Globe, Info, BellRing, BellOff, Check, Plus, Trash2, Download, Upload, Loader2 } from "lucide-react";
 import { CATEGORY_PALETTE, NOTIFY_OPTIONS } from "../lib/constants.js";
 import { uid } from "../lib/utils.js";
+import { sendTestNotification } from "../lib/pushNotifications.js";
 
 export default function SettingsPage({
   settings,
@@ -9,7 +10,9 @@ export default function SettingsPage({
   categories,
   setCategories,
   notifPermission,
-  requestNotifPermission,
+  pushSubscribed,
+  pushSupported,
+  enableNotifications,
   schedules,
   setSchedules,
   reminders,
@@ -18,6 +21,46 @@ export default function SettingsPage({
   onShowGuide,
 }) {
   const update = (patch) => setSettings((s) => ({ ...s, ...patch }));
+  const [enabling, setEnabling] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const handleEnableNotifications = async () => {
+    setEnabling(true);
+    try {
+      const result = await enableNotifications();
+      if (result.ok) {
+        pushToast("Notifications enabled", "You'll get alerts even when this tab is closed.");
+      } else if (result.reason === "denied") {
+        pushToast("Permission blocked", "Allow notifications in your browser settings.");
+      } else if (result.reason === "unsupported") {
+        pushToast("Not supported", "This browser does not support push notifications.");
+      } else {
+        pushToast("Setup failed", "Could not enable background notifications. Try again.");
+      }
+    } finally {
+      setEnabling(false);
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    const next = !settings.notificationsEnabled;
+    update({ notificationsEnabled: next });
+    if (next) {
+      await handleEnableNotifications();
+    }
+  };
+
+  const handleTestNotification = async () => {
+    setTesting(true);
+    try {
+      await sendTestNotification();
+      pushToast("Test sent", "Check your system notifications.");
+    } catch (err) {
+      pushToast("Test failed", err.message || "Could not send test notification.");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const fileInputRef = useRef(null);
 
@@ -134,10 +177,17 @@ export default function SettingsPage({
       </SettingsSection>
 
       <SettingsSection icon={Bell} title="Notifications">
-        <SettingRow label="Browser notifications" description="Get notified before schedules start and reminders are due.">
+        <SettingRow
+          label="Background notifications"
+          description="Get notified before schedules and reminders, even when you're not on this site."
+        >
           <button
-            onClick={() => update({ notificationsEnabled: !settings.notificationsEnabled })}
-            className={`w-11 h-6 rounded-full relative transition-colors ${settings.notificationsEnabled ? "bg-teal-500" : "bg-neutral-800"}`}
+            type="button"
+            role="switch"
+            aria-checked={settings.notificationsEnabled}
+            onClick={handleToggleNotifications}
+            disabled={enabling}
+            className={`w-11 h-6 rounded-full relative transition-colors disabled:opacity-50 ${settings.notificationsEnabled ? "bg-teal-500" : "bg-neutral-800"}`}
           >
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-neutral-100 transition-transform ${settings.notificationsEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
           </button>
@@ -145,19 +195,43 @@ export default function SettingsPage({
         <SettingRow
           label="Permission status"
           description={
-            notifPermission === "granted" ? "Browser notifications are allowed." :
-            notifPermission === "denied" ? "Browser notifications are blocked. In-app alerts will be used instead." :
-            notifPermission === "unsupported" ? "This browser does not support notifications. In-app alerts will be used instead." :
-            "Not yet granted."
+            !pushSupported ? "This browser does not support background notifications. In-app alerts will be used while the tab is open." :
+            notifPermission === "granted" && pushSubscribed ? "Background notifications are active — you'll get alerts even when this tab is closed." :
+            notifPermission === "granted" ? "Permission granted. Click Enable to finish setup." :
+            notifPermission === "denied" ? "Notifications are blocked in your browser. Enable them in site settings, then click Enable here." :
+            "Click Enable to allow notifications and register for background alerts."
           }
         >
-          {notifPermission === "default" && (
-            <button onClick={requestNotifPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal-500 hover:bg-teal-400 text-neutral-950 text-xs font-medium">
-              <BellRing size={13} /> Enable
-            </button>
-          )}
-          {notifPermission === "granted" && <span className="flex items-center gap-1.5 text-xs text-teal-400"><Check size={13} /> Granted</span>}
-          {notifPermission === "denied" && <span className="flex items-center gap-1.5 text-xs text-rose-400"><BellOff size={13} /> Blocked</span>}
+          <div className="flex items-center gap-2">
+            {(notifPermission === "default" || (notifPermission === "granted" && !pushSubscribed)) && pushSupported && (
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={enabling}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-neutral-950 text-xs font-medium"
+              >
+                {enabling ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
+                {enabling ? "Enabling…" : "Enable"}
+              </button>
+            )}
+            {notifPermission === "granted" && pushSubscribed && (
+              <span className="flex items-center gap-1.5 text-xs text-teal-400"><Check size={13} /> Active</span>
+            )}
+            {notifPermission === "denied" && (
+              <span className="flex items-center gap-1.5 text-xs text-rose-400"><BellOff size={13} /> Blocked</span>
+            )}
+            {notifPermission === "granted" && pushSubscribed && (
+              <button
+                type="button"
+                onClick={handleTestNotification}
+                disabled={testing}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 text-neutral-200 text-xs font-medium disabled:opacity-50"
+              >
+                {testing ? <Loader2 size={13} className="animate-spin" /> : null}
+                Test
+              </button>
+            )}
+          </div>
         </SettingRow>
       </SettingsSection>
 

@@ -15,6 +15,15 @@ import OnboardingTour from "./components/OnboardingTour.jsx";
 import { DEFAULT_CATEGORIES } from "./lib/constants.js";
 import { tutorialSteps } from "./lib/seedData.js";
 import { uid, toMinutes, daysForSchedule, startOfWeek, addDays, dateKey, weekdayIndexMonday, getReminderNextOccurrence } from "./lib/utils.js";
+import {
+  registerServiceWorker,
+  getNotificationPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+  syncDataToServer,
+  showLocalNotification,
+  isPushSupported,
+} from "./lib/pushNotifications.js";
 
 export default function App() {
   const [view, setView] = useState("dashboard");
@@ -97,19 +106,42 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
-  const [notifPermission, setNotifPermission] = useState(
-    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
-  );
-  const requestNotifPermission = useCallback(() => {
-    if (typeof Notification === "undefined") return;
-    Notification.requestPermission().then(setNotifPermission);
-  }, []);
+  const [notifPermission, setNotifPermission] = useState("default");
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+
   useEffect(() => {
-    if (settings.notificationsEnabled && typeof Notification !== "undefined" && Notification.permission === "default") {
-      requestNotifPermission();
+    registerServiceWorker();
+    getNotificationPermission().then(setNotifPermission);
+    if (isPushSupported()) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          if (sub) setPushSubscribed(true);
+        });
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const enableNotifications = useCallback(async () => {
+    const result = await subscribeToPush();
+    const permission = await getNotificationPermission();
+    setNotifPermission(permission);
+    setPushSubscribed(result.ok);
+    await syncDataToServer({ schedules, reminders, settings });
+    return result;
+  }, [schedules, reminders, settings]);
+
+  const disableNotifications = useCallback(async () => {
+    await unsubscribeFromPush();
+    setPushSubscribed(false);
+  }, []);
+
+  useEffect(() => {
+    if (!settings.notificationsEnabled) {
+      disableNotifications();
+      return;
+    }
+    syncDataToServer({ schedules, reminders, settings });
+  }, [schedules, reminders, settings, settings.notificationsEnabled, disableNotifications]);
 
   const [toasts, setToasts] = useState([]);
   const pushToast = useCallback((title, body) => {
@@ -131,11 +163,9 @@ export default function App() {
       if (Math.abs(nowMin - notifyAt) <= 1 && !firedRef.current.has(fireKey)) {
         firedRef.current.add(fireKey);
         const msg = s.reminder === 0 ? `Starting now${s.location ? " · " + s.location : ""}` : `Starts in ${s.reminder} min${s.location ? " · " + s.location : ""}`;
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-          new Notification(s.title, { body: msg });
-        } else {
-          pushToast(s.title, msg);
-        }
+        showLocalNotification(s.title, msg).then((shown) => {
+          if (!shown) pushToast(s.title, msg);
+        });
       }
     });
     reminders.forEach((r) => {
@@ -146,11 +176,9 @@ export default function App() {
       if (diffSec <= 30 && !firedRef.current.has(fireKey)) {
         firedRef.current.add(fireKey);
         const msg = r.notifyBefore === 0 ? "Due now" : `Due in ${r.notifyBefore} min`;
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-          new Notification(r.title, { body: msg });
-        } else {
-          pushToast(r.title, msg);
-        }
+        showLocalNotification(r.title, msg).then((shown) => {
+          if (!shown) pushToast(r.title, msg);
+        });
       }
     });
   }, [now, schedules, reminders, settings.notificationsEnabled, pushToast]);
@@ -275,7 +303,9 @@ export default function App() {
             categories={categories}
             setCategories={setCategories}
             notifPermission={notifPermission}
-            requestNotifPermission={requestNotifPermission}
+            pushSubscribed={pushSubscribed}
+            pushSupported={isPushSupported()}
+            enableNotifications={enableNotifications}
             schedules={schedules}
             setSchedules={setSchedules}
             reminders={reminders}

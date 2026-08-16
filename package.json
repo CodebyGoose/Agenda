@@ -4,18 +4,26 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ./node_modules/vite/bin/vite.js",
+    "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js -n vite,server -c cyan,green \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "node ./node_modules/vite/bin/vite.js",
+    "dev:server": "node --env-file=.env server/index.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
-    "preview": "node ./node_modules/vite/bin/vite.js preview"
+    "start": "node server/index.js",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "generate-vapid": "node scripts/generate-vapid.js"
   },
   "dependencies": {
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.6.2",
     "lucide-react": "^0.383.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.19",
+    "concurrently": "^9.1.2",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "vite": "^5.2.0"
