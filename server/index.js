@@ -114,16 +114,17 @@ app.post("/api/push/test", async (req, res) => {
   }
 });
 
-const distExists = fs.existsSync(DIST_DIR);
-if (process.env.NODE_ENV === "production" || distExists) {
-  app.use(express.static(DIST_DIR));
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api")) return next();
-    res.sendFile(path.join(DIST_DIR, "index.html"), (err) => {
-      if (err) next(err);
-    });
-  });
-}
+app.use(express.static(DIST_DIR));
+
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  const indexPath = path.join(DIST_DIR, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("Application static files not found. Ensure 'npm run build' completed successfully.");
+  }
+});
 
 startNotificationScheduler({ subject: vapidSubject, publicKey, privateKey });
 
