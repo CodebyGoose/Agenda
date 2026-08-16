@@ -1,10 +1,95 @@
-import React from "react";
-import { Clock, Bell, Palette, Globe, Info, BellRing, BellOff, Check, Plus, Trash2 } from "lucide-react";
+import React, { useRef } from "react";
+import { Clock, Bell, Palette, Globe, Info, BellRing, BellOff, Check, Plus, Trash2, Download, Upload } from "lucide-react";
 import { CATEGORY_PALETTE, NOTIFY_OPTIONS } from "../lib/constants.js";
 import { uid } from "../lib/utils.js";
 
-export default function SettingsPage({ settings, setSettings, categories, setCategories, notifPermission, requestNotifPermission }) {
+export default function SettingsPage({
+  settings,
+  setSettings,
+  categories,
+  setCategories,
+  notifPermission,
+  requestNotifPermission,
+  schedules,
+  setSchedules,
+  reminders,
+  setReminders,
+  pushToast,
+  onShowGuide,
+}) {
   const update = (patch) => setSettings((s) => ({ ...s, ...patch }));
+
+  const fileInputRef = useRef(null);
+
+  const handleExport = () => {
+    try {
+      const data = {
+        version: 1,
+        settings,
+        categories,
+        schedules,
+        reminders,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `agenda-backup-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      pushToast("Export complete", "Data backup downloaded successfully.");
+    } catch (error) {
+      pushToast("Export failed", "Unable to export data.");
+    }
+  };
+
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+
+        if (!data || typeof data !== "object") {
+          throw new Error("Invalid format");
+        }
+
+        if (data.categories && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        }
+        if (data.schedules && Array.isArray(data.schedules)) {
+          setSchedules(data.schedules);
+        }
+        if (data.reminders && Array.isArray(data.reminders)) {
+          setReminders(data.reminders);
+        }
+        if (data.settings && typeof data.settings === "object") {
+          setSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+
+        pushToast("Import complete", "Successfully loaded backup data.");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } catch (err) {
+        pushToast("Import failed", "Invalid or corrupted backup file.");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const updateCategoryColor = (id, color) => {
     setCategories((cats) => cats.map((c) => (c.id === id ? { ...c, color } : c)));
@@ -109,11 +194,45 @@ export default function SettingsPage({ settings, setSettings, categories, setCat
         <SettingRow label="Theme" description="This app uses a fixed dark theme for focus and consistency.">
           <span className="text-xs text-neutral-500 px-3 py-1.5 border border-neutral-800 rounded-md">Dark</span>
         </SettingRow>
+        <SettingRow label="App guide" description="Show the step-by-step introduction guide to the application features.">
+          <button
+            onClick={onShowGuide}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-800 hover:border-neutral-700 bg-neutral-950 hover:bg-neutral-900 text-neutral-200 text-xs font-medium transition-colors"
+          >
+            Show Guide
+          </button>
+        </SettingRow>
+      </SettingsSection>
+
+      <SettingsSection icon={Download} title="Data Transfer">
+        <SettingRow label="Export backup" description="Save all your current settings, categories, schedules, and reminders to a file on your device.">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal-500 hover:bg-teal-400 text-neutral-950 text-xs font-medium transition-colors"
+          >
+            <Download size={13} /> Export
+          </button>
+        </SettingRow>
+        <SettingRow label="Import backup" description="Load a previously saved agenda data file. This will replace your current items and categories.">
+          <button
+            onClick={handleImportClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-800 hover:border-neutral-700 bg-neutral-950 hover:bg-neutral-900 text-neutral-200 text-xs font-medium transition-colors"
+          >
+            <Upload size={13} /> Import
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImport}
+            accept=".json"
+            className="hidden"
+          />
+        </SettingRow>
       </SettingsSection>
 
       <div className="flex items-start gap-2 text-xs text-neutral-600 px-1">
         <Info size={13} className="mt-0.5 shrink-0" />
-        <span>Connect a backend or database to persist schedules and reminders across sessions and devices.</span>
+        <span>Your data is automatically saved to your browser's local storage. Use the export/import controls to manually sync data between different devices or browsers.</span>
       </div>
     </div>
   );

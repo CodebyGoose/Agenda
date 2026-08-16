@@ -4,7 +4,7 @@ import { ModalShell, Field } from "./ModalShell.jsx";
 import { DAY_NAMES, REPEAT_OPTIONS, NOTIFY_OPTIONS } from "../lib/constants.js";
 import { toMinutes, checkOverlap } from "../lib/utils.js";
 
-export default function ScheduleModal({ data, categories, schedules, settings, onClose, onSave }) {
+export default function ScheduleModal({ data, categories, schedules, settings, onClose, onSave, onDelete }) {
   const editing = data.editing;
   const [form, setForm] = useState(() => editing ? { ...editing } : {
     title: "", day: data.defaultDay ?? 0, start: "09:00", end: "10:00",
@@ -83,15 +83,27 @@ export default function ScheduleModal({ data, categories, schedules, settings, o
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-neutral-800">
-        <button onClick={onClose} className="px-4 py-2 rounded-md border border-neutral-800 hover:border-neutral-700 text-sm font-medium text-neutral-300">Cancel</button>
-        <button
-          disabled={!canSave}
-          onClick={() => onSave({ ...form, id: editing?.id })}
-          className="px-4 py-2 rounded-md bg-teal-500 hover:bg-teal-400 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-950 text-sm font-medium"
-        >
-          Save
-        </button>
+      <div className="flex items-center justify-between mt-6 pt-4 border-t border-neutral-800">
+        <div>
+          {editing && (
+            <button
+              onClick={() => onDelete(editing.id)}
+              className="px-4 py-2 rounded-md border border-rose-950/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-medium transition-colors"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-md border border-neutral-800 hover:border-neutral-700 text-sm font-medium text-neutral-300">Cancel</button>
+          <button
+            disabled={!canSave}
+            onClick={() => onSave({ ...form, id: editing?.id })}
+            className="px-4 py-2 rounded-md bg-teal-500 hover:bg-teal-400 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-950 text-sm font-medium"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </ModalShell>
   );

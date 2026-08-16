@@ -10,6 +10,7 @@ import ScheduleModal from "./components/ScheduleModal.jsx";
 import ReminderModal from "./components/ReminderModal.jsx";
 import { ConfirmModal } from "./components/ModalShell.jsx";
 import Toasts from "./components/Toasts.jsx";
+import OnboardingTour from "./components/OnboardingTour.jsx";
 
 import { DEFAULT_CATEGORIES } from "./lib/constants.js";
 import { tutorialSteps } from "./lib/seedData.js";
@@ -19,16 +20,76 @@ export default function App() {
   const [view, setView] = useState("dashboard");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [schedules, setSchedules] = useState([]);
-  const [reminders, setReminders] = useState([]);
-
-  const [settings, setSettings] = useState({
-    timeFormat24: false,
-    notificationsEnabled: true,
-    defaultReminder: 10,
-    firstDayMonday: true,
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem("agenda_categories");
+      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    } catch {
+      return DEFAULT_CATEGORIES;
+    }
   });
+  const [schedules, setSchedules] = useState(() => {
+    try {
+      const saved = localStorage.getItem("agenda_schedules");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [reminders, setReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("agenda_reminders");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [settings, setSettings] = useState(() => {
+    const defaultSettings = {
+      timeFormat24: false,
+      notificationsEnabled: true,
+      defaultReminder: 10,
+      firstDayMonday: true,
+    };
+    try {
+      const saved = localStorage.getItem("agenda_settings");
+      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    } catch {
+      return defaultSettings;
+    }
+  });
+
+  const [showGuide, setShowGuide] = useState(() => {
+    try {
+      return !localStorage.getItem("agenda_hide_guide");
+    } catch {
+      return true;
+    }
+  });
+
+  const closeGuide = () => {
+    try {
+      localStorage.setItem("agenda_hide_guide", "true");
+    } catch (e) {}
+    setShowGuide(false);
+  };
+
+  useEffect(() => {
+    localStorage.setItem("agenda_categories", JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem("agenda_schedules", JSON.stringify(schedules));
+  }, [schedules]);
+
+  useEffect(() => {
+    localStorage.setItem("agenda_reminders", JSON.stringify(reminders));
+  }, [reminders]);
+
+  useEffect(() => {
+    localStorage.setItem("agenda_settings", JSON.stringify(settings));
+  }, [settings]);
 
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -215,6 +276,12 @@ export default function App() {
             setCategories={setCategories}
             notifPermission={notifPermission}
             requestNotifPermission={requestNotifPermission}
+            schedules={schedules}
+            setSchedules={setSchedules}
+            reminders={reminders}
+            setReminders={setReminders}
+            pushToast={pushToast}
+            onShowGuide={() => setShowGuide(true)}
           />
         )}
       </main>
@@ -229,6 +296,10 @@ export default function App() {
           settings={settings}
           onClose={() => setScheduleModal(null)}
           onSave={saveSchedule}
+          onDelete={(id) => {
+            setScheduleModal(null);
+            setConfirmDelete({ type: "schedule", id, label: scheduleModal.editing?.title });
+          }}
         />
       )}
       {reminderModal && (
@@ -252,6 +323,8 @@ export default function App() {
       )}
 
       <Toasts toasts={toasts} dismiss={(id) => setToasts((ts) => ts.filter((x) => x.id !== id))} />
+
+      {showGuide && <OnboardingTour onClose={closeGuide} />}
     </div>
   );
 }

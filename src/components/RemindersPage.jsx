@@ -45,7 +45,7 @@ export default function RemindersPage({ reminders, now, settings, tutorialSteps,
                 <span className="text-[11px] text-neutral-600 flex items-center gap-1"><BellRing size={11} />{NOTIFY_OPTIONS.find(o => o.value === r.notifyBefore)?.label}</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <button onClick={() => onEdit(r)} className="p-1.5 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"><Edit size={13} /></button>
               <button onClick={() => onDelete(r)} className="p-1.5 rounded text-neutral-500 hover:text-rose-400 hover:bg-neutral-800"><Trash2 size={13} /></button>
             </div>

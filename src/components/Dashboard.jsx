@@ -121,7 +121,7 @@ export default function Dashboard({ now, schedules, reminders, categories, setti
                     {occ.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {formatTime(r.time, settings.timeFormat24)}
                   </div>
                 </div>
-                <div className="hidden group-hover:flex items-center gap-1 shrink-0">
+                <div className="flex md:hidden md:group-hover:flex items-center gap-1 shrink-0">
                   <button onClick={() => onEditReminder(r)} className="p-1.5 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"><Edit size={13} /></button>
                   <button onClick={() => onDeleteReminder(r)} className="p-1.5 rounded text-neutral-500 hover:text-rose-400 hover:bg-neutral-800"><Trash2 size={13} /></button>
                 </div>

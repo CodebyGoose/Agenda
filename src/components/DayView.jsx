@@ -38,7 +38,7 @@ export default function DayView({ date, schedules, categories, settings, now, on
               {s.description && <div className="text-xs text-neutral-500 mt-1">{s.description}</div>}
               {s.repeat !== "once" && <div className="text-[11px] text-neutral-600 flex items-center gap-1 mt-1"><Repeat size={11} />{REPEAT_OPTIONS.find(r => r.value === s.repeat)?.label}</div>}
             </div>
-            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <button onClick={() => onDuplicate(s)} className="p-1.5 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"><Copy size={13} /></button>
               <button onClick={() => onEdit(s)} className="p-1.5 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"><Edit size={13} /></button>
               <button onClick={() => onDelete(s)} className="p-1.5 rounded text-neutral-500 hover:text-rose-400 hover:bg-neutral-800"><Trash2 size={13} /></button>
